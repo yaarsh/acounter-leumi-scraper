@@ -54,9 +54,12 @@ export async function init(options: InitOptions = {}): Promise<ScraperInstance> 
   };
 }
 
-// Re-export types for convenience
+// Re-export types for convenience  
 export * from './types';
 export { leumi };
+
+// Export normalization utilities
+export * from './utils/normalize';
 
 // Default export for backwards compatibility
 export default { init };

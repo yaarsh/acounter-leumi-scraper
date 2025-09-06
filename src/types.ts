@@ -1,41 +1,26 @@
-export interface LeumiCredentials {
-  username: string;
-  password: string;
-}
+/**
+ * Main types for Acounter Leumi Scraper
+ * Default export uses RAW Leumi data to preserve all information
+ */
 
-export interface LeumiOptions {
-  validateSchema?: boolean;
-  verbose?: boolean;
-  startDate?: Date;
-}
+// Re-export raw Leumi types as the default
+export * from './types/leumi-raw';
 
-export interface Transaction {
-  date: Date;
-  processedDate: Date;
-  originalAmount: number;
-  originalCurrency: string;
-  chargedAmount: number;
-  chargedCurrency: string;
-  description: string;
-  memo: string;
-  type: string;
-  status: string;
-  identifier?: string | number;
-}
+// Also export normalized types for backward compatibility
+export * from './types/normalized';
 
-export interface AccountData {
-  accountNumber: string;
-  balance?: number;
-  transactions: Transaction[];
-}
+// Convenience re-exports with clearer names
+export {
+  LeumiCredentials,
+  LeumiOptions,
+  LeumiRawAccountData as AccountData,
+  LeumiRawTransaction as Transaction,
+  LeumiRawScraperMethods as LeumiScraperMethods,
+} from './types/leumi-raw';
 
-export interface ScraperResult {
-  success: boolean;
-  accounts: AccountData[];
-  errorType?: string;
-  errorMessage?: string;
-}
-
-export interface LeumiScraperMethods {
-  getILSTransactions: () => Promise<AccountData[]>;
-}
+// Legacy support - use these if you want the old normalized format
+export {
+  NormalizedAccountData as LegacyAccountData,
+  NormalizedTransaction as LegacyTransaction,
+  NormalizedScraperMethods as LegacyScraperMethods,
+} from './types/normalized';

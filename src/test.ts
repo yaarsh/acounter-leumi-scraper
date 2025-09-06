@@ -44,11 +44,14 @@ async function testLeumiScraper() {
       if (account.transactions.length > 0) {
         console.log('Recent transactions:');
         account.transactions.slice(0, 5).forEach((txn, txnIndex) => {
-          const date = txn.date.toLocaleDateString('he-IL');
-          const amount = txn.chargedAmount > 0 
-            ? `+₪${txn.chargedAmount.toLocaleString()}` 
-            : `-₪${Math.abs(txn.chargedAmount).toLocaleString()}`;
-          console.log(`  ${txnIndex + 1}. ${date} | ${amount} | ${txn.description}`);
+          const date = new Date(txn.DateUTC).toLocaleDateString('he-IL');
+          const amount = txn.Amount > 0 
+            ? `+₪${txn.Amount.toLocaleString()}` 
+            : `-₪${Math.abs(txn.Amount).toLocaleString()}`;
+          console.log(`  ${txnIndex + 1}. ${date} | ${amount} | ${txn.Description}`);
+          console.log(`    💰 Credit: ₪${txn.Credit}, Debit: ₪${txn.Debit}`);
+          console.log(`    🏦 Running Balance: ₪${txn.RunningBalance}`);
+          console.log(`    📄 Memo: ${txn.AdditionalData}`);
         });
       }
     });
@@ -56,14 +59,8 @@ async function testLeumiScraper() {
   } catch (error) {
     console.error('❌ Error:', error instanceof Error ? error.message : String(error));
   } finally {
-    console.log('⏳ Keeping browser open for inspection...');
-    console.log('Press Ctrl+C to close when done inspecting');
-    
-    // Keep the browser open - don't close automatically
-    // await scraper.close();
-    
-    // Wait indefinitely until user presses Ctrl+C
-    await new Promise(() => {}); // This will keep the process running
+    await scraper.close();
+    console.log('🔚 Browser closed');
   }
 }
 

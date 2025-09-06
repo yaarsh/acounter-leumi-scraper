@@ -3,9 +3,11 @@ import { format, subYears } from 'date-fns';
 import { 
   LeumiCredentials, 
   LeumiOptions, 
-  LeumiScraperMethods, 
-  AccountData,
-  Transaction 
+  LeumiRawScraperMethods, 
+  LeumiRawAccountData,
+  LeumiRawTransaction,
+  LeumiRawApiResponse,
+  LeumiTransactionStatus
 } from '../types';
 
 const BASE_URL = 'https://hb2.bankleumi.co.il';
@@ -62,7 +64,7 @@ async function fetchTransactionsForAccount(
   page: Page, 
   startDate: Date,
   accountId: string
-): Promise<AccountData> {
+): Promise<LeumiRawAccountData> {
   console.log(`📊 Fetching transactions for account: ${accountId}`);
   
   // DEVELOPER NOTICE: Wait for dynamic content to stabilize (from original code)
@@ -92,16 +94,23 @@ async function fetchTransactionsForAccount(
   const finalResponse = await responsePromise;
 
   const responseJson: any = await finalResponse.json();
-  const response = JSON.parse(responseJson.jsonResp);
+  const response: LeumiRawApiResponse = JSON.parse(responseJson.jsonResp);
 
-  // Extract data exactly like the original
-  const pendingTransactions = response.TodayTransactionsItems;
-  const transactions = response.HistoryTransactionsItems;
+  // Preserve ALL raw data - no normalization!
+  const pendingTransactions = response.TodayTransactionsItems || [];
+  const transactions = response.HistoryTransactionsItems || [];
   const balance = response.BalanceDisplay ? parseFloat(response.BalanceDisplay) : undefined;
 
-  const pendingTxns = extractTransactions(pendingTransactions, 'pending');
-  const completedTxns = extractTransactions(transactions, 'completed');
-  const txns = [...pendingTxns, ...completedTxns];
+  // Add status to raw transactions but keep all original fields
+  const pendingTxns: LeumiRawTransaction[] = pendingTransactions.map(txn => ({
+    ...txn, // Preserve ALL original fields
+  }));
+  
+  const completedTxns: LeumiRawTransaction[] = transactions.map(txn => ({
+    ...txn, // Preserve ALL original fields
+  }));
+
+  const allTransactions = [...pendingTxns, ...completedTxns];
 
   // Clean account number like original
   const accountNumber = accountId.replace('/', '_').replace(/[^\d\-_]/g, '');
@@ -109,37 +118,18 @@ async function fetchTransactionsForAccount(
   return {
     accountNumber,
     balance,
-    transactions: txns,
+    transactions: allTransactions,
+    metadata: {
+      balanceIncludingToday: response.BalanceIncludingToday,
+      totalCredit: response.TotalCredit,
+      asOfDate: response.AsOfDateUTC,
+      todayFlag: response.TodayFlag,
+    }
   };
 }
 
-// Transaction parsing from original code, adapted to our types
-function extractTransactions(rawTransactions: any[], status: string): Transaction[] {
-  if (!rawTransactions || rawTransactions.length === 0) {
-    return [];
-  }
-
-  return rawTransactions.map(rawTransaction => {
-    const date = new Date(rawTransaction.DateUTC);
-    
-    return {
-      date,
-      processedDate: date,
-      originalAmount: rawTransaction.Amount,
-      originalCurrency: 'ILS',
-      chargedAmount: rawTransaction.Amount,
-      chargedCurrency: 'ILS',
-      description: rawTransaction.Description || '',
-      memo: rawTransaction.AdditionalData || '',
-      type: 'normal',
-      status,
-      identifier: rawTransaction.ReferenceNumberLong,
-    };
-  });
-}
-
-async function fetchAllTransactions(page: Page, startDate: Date): Promise<AccountData[]> {
-  const accounts: AccountData[] = [];
+async function fetchAllTransactions(page: Page, startDate: Date): Promise<LeumiRawAccountData[]> {
+  const accounts: LeumiRawAccountData[] = [];
 
   // Wait for dynamic content (from original)
   await delay(4000);
@@ -174,7 +164,7 @@ export async function leumi(
   page: Page,
   credentials: LeumiCredentials,
   options: LeumiOptions = {}
-): Promise<LeumiScraperMethods> {
+): Promise<LeumiRawScraperMethods> {
   const startDate = options.startDate || subYears(new Date(), 1);
 
   await performLogin(page, credentials);
@@ -221,7 +211,7 @@ export async function leumi(
     console.log('ℹ️ No popup found - continuing to transactions page');
   }
 
-  const getILSTransactions = async (): Promise<AccountData[]> => {
+  const getILSTransactions = async (): Promise<LeumiRawAccountData[]> => {
     try {
       console.log('📊 Starting transaction extraction using israeli-bank-scrapers logic...');
       return await fetchAllTransactions(page, startDate);
